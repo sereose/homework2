@@ -1,0 +1,36 @@
+  
+services:  
+  reverse-proxy:  
+    image: traefik:3.0  
+    command:  
+      # Enable API and secure it
+      - "--api=true"
+      - "--api.insecure=false"
+      # Docker provider
+      - "--providers.docker=true"
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # HTTP to HTTPS redirect
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Let's Encrypt ACME configuration
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./letsencrypt:/letsencrypt  
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  whoami:  
+    image: traefik/whoami  
+    labels:  
+      - "traefik.http.routers.whoami.rule=Host(`${DOMAIN_NAME}`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=myresolver"
+    # Ensure stateless behavior
+    restart: unless-stopped
